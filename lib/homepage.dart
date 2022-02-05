@@ -32,7 +32,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   late Web3Client ethClient;
   // JSON-RPC is a remote procedure call protocol encoded in JSON
   // Remote Procedure Call (RPC) is about executing a block of code on another server
-  String rpcUrl = 'https://testnet.aurora.dev/:443';
+  String rpcUrl = 'https://testnet.aurora.dev';
 
   Future<void> initialSetup() async {
     /// This will start a client that connects to a JSON RPC API, available at RPC URL.
@@ -42,7 +42,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     /// It connects to an Ethereum [node] to send transactions, interact with smart contracts, and much more!
     ethClient = Web3Client(rpcUrl, httpClient);
 
-    //await getCredentials();
+    await getCredentials();
     await getDeployedContract();
     await getContractFunctions();
   }
@@ -54,32 +54,29 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   //String acc2privateKey = '';
 
   late Credentials credentials1;
-  late Credentials credentials2;
+//TODO: insert primary and secondary acc public address
+  var mainAddress = EthereumAddress.fromHex('0x...');
+  var secondAccAdd = EthereumAddress.fromHex('0x...');
 
-  var mainAddress =
-      EthereumAddress.fromHex('0x3697F2CBBa74D1E3dcc46B5cC7D46bd24Ff83797');
-  var secondAccAdd =
-      EthereumAddress.fromHex('0x768EE6F868783B92C186727DCc2Bd4042CC5fC03');
-/*
   Future<void> getCredentials() async {
-    credentials1 = await ethClient.credentialsFromPrivateKey(acc1privateKey);
-    mainAddress = await credentials1.extractAddress();
-
-    credentials2 = await ethClient.credentialsFromPrivateKey(acc2privateKey);
-    secondAccAdd = await credentials2.extractAddress();
+    //TODO: insert private key
+    credentials1 = await ethClient.credentialsFromPrivateKey('');
+    //mainAddress = await credentials1.extractAddress();
   }
-*/
+
   /// This will parse an Ethereum address of the contract in [contractAddress]
   /// from the hexadecimal representation present inside the [ABI]
   late String abi;
   late EthereumAddress contractAddress;
 
   Future<void> getDeployedContract() async {
+//TODO: insert abi file location
     String abiString = await rootBundle.loadString('abi.json');
     var abiJson = jsonDecode(abiString);
     abi = jsonEncode(abiJson);
     //contractAddress = EthereumAddress.fromHex(abiJson['networks']['5777']['address']);
 
+//TODO: insert contract address
     contractAddress =
         EthereumAddress.fromHex('0xD935E288b3C7905373aB8fEdAf849686029d38eb');
   }
