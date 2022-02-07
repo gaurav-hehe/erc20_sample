@@ -15,8 +15,7 @@ class HomePageWidget extends StatefulWidget {
 
 class _HomePageWidgetState extends State<HomePageWidget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  TextEditingController mintAmount = TextEditingController();
-  TextEditingController burnAmount = TextEditingController();
+  final TextEditingController transferAmount = TextEditingController();
 
   @override
   void initState() {
@@ -24,6 +23,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     super.initState();
   }
 
+  String tokenSymbol = '';
+  String tokenName = '';
   int balance = 0;
   int secAccBal = 0;
   int totalTokens = 0;
@@ -32,7 +33,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   late Web3Client ethClient;
   // JSON-RPC is a remote procedure call protocol encoded in JSON
   // Remote Procedure Call (RPC) is about executing a block of code on another server
-  String rpcUrl = 'https://testnet.aurora.dev';
+  String rpcUrl = 'https://testnet.aurora.dev:443';
 
   Future<void> initialSetup() async {
     /// This will start a client that connects to a JSON RPC API, available at RPC URL.
@@ -50,17 +51,17 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   /// This will construct [credentials] with the provided [privateKey]
   /// and load the Ethereum address in [myAdderess] specified by these credentials.
 
-  //String acc1privateKey = '';
-  //String acc2privateKey = '';
+  //TODO: insert private key
+  String privateKey = '';
 
-  late Credentials credentials1;
+  late Credentials credentials;
+
 //TODO: insert primary and secondary acc public address
   var mainAddress = EthereumAddress.fromHex('0x...');
   var secondAccAdd = EthereumAddress.fromHex('0x...');
 
   Future<void> getCredentials() async {
-    //TODO: insert private key
-    credentials1 = await ethClient.credentialsFromPrivateKey('');
+    credentials = await ethClient.credentialsFromPrivateKey(privateKey);
     //mainAddress = await credentials1.extractAddress();
   }
 
@@ -78,20 +79,23 @@ class _HomePageWidgetState extends State<HomePageWidget> {
 
 //TODO: insert contract address
     contractAddress =
-        EthereumAddress.fromHex('0xD935E288b3C7905373aB8fEdAf849686029d38eb');
+        EthereumAddress.fromHex('0xF8277B7fF94Fb18a648B560214d9e04930401F96');
   }
 
   /// This will help us to find all the [public functions] defined by the [contract]
   late DeployedContract contract;
-  late ContractFunction balanceOf, mint, burn, totalSupply;
+  late ContractFunction balanceOf, totalSupply, transferFrom, symbol, name;
 
   Future<void> getContractFunctions() async {
     contract = DeployedContract(
-        ContractAbi.fromJson(abi, "SampleCoin"), contractAddress);
+      ContractAbi.fromJson(abi, "SampleCoin"),
+      contractAddress,
+    );
 
     balanceOf = contract.function('balanceOf');
-    mint = contract.function('mint');
-    burn = contract.function('burn');
+    name = contract.function('name');
+    symbol = contract.function('symbol');
+    transferFrom = contract.function('transfer');
     totalSupply = contract.function('totalSupply');
   }
 
@@ -117,12 +121,14 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     List<dynamic> functionArgs,
   ) async {
     await ethClient.sendTransaction(
-      credentials1,
+      credentials,
       Transaction.callContract(
         contract: contract,
         function: functionName,
         parameters: functionArgs,
       ),
+      // Aurora Testnet ChainID
+      chainId: 1313161555,
     );
   }
 
@@ -132,63 +138,16 @@ class _HomePageWidgetState extends State<HomePageWidget> {
       key: scaffoldKey,
       backgroundColor: Colors.grey,
       body: SafeArea(
-        child: Align(
-          alignment: const AlignmentDirectional(0, 0),
-          child: SingleChildScrollView(
-            primary: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
                   child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    height: MediaQuery.of(context).size.height * 0.18,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEEEEE),
-                      border: Border.all(
-                        color: const Color(0xFF191919),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        const Text(
-                          'Main Acc Balance',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '$balance',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            var result =
-                                await readContract(balanceOf, [mainAddress]);
-                            balance = result.first.toInt();
-                            setState(() {});
-                            print('Button pressed...');
-                          },
-                          child: const Text('Get Balance'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
+                    width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.18,
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEEEEE),
@@ -201,27 +160,27 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         const Text(
-                          'Add to Main Acc',
+                          'Name',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            hintText: 'amount',
-                          ),
+                        Text(
+                          tokenName,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                         ElevatedButton(
-                          onPressed: () {
-                            print('Button pressed...');
+                          onPressed: () async {
+                            var result = await readContract(name, []);
+                            tokenName = result.first.toString();
+                            setState(() {});
                           },
-                          child: const Text('Add'),
+                          child: const Text('Get Name'),
                         ),
                       ],
                     ),
@@ -230,7 +189,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
                   child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
+                    width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.18,
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEEEEE),
@@ -243,49 +202,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         const Text(
-                          'Transfer to Acc 2',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            hintText: 'amount',
-                          ),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            print('Button pressed...');
-                          },
-                          child: const Text('Transfer'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    height: MediaQuery.of(context).size.height * 0.18,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEEEEE),
-                      border: Border.all(
-                        color: const Color(0xFF191919),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        const Text(
-                          'Acc 2 Balance',
+                          'Symbol',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Poppins',
@@ -293,7 +210,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                           ),
                         ),
                         Text(
-                          '$secAccBal',
+                          tokenSymbol,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -301,13 +218,11 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         ),
                         ElevatedButton(
                           onPressed: () async {
-                            var result =
-                                await readContract(balanceOf, [secondAccAdd]);
-                            secAccBal = result.first.toInt();
+                            var result = await readContract(symbol, []);
+                            tokenSymbol = result.first.toString();
                             setState(() {});
-                            print('Button pressed...');
                           },
-                          child: const Text('Get Balance'),
+                          child: const Text('Get Symbol'),
                         ),
                       ],
                     ),
@@ -316,7 +231,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
                   child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
+                    width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.18,
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEEEEE),
@@ -337,7 +252,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                           ),
                         ),
                         Text(
-                          '$totalTokens',
+                          totalTokens.toString(),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -348,7 +263,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             var result = await readContract(totalSupply, []);
                             totalTokens = result.first.toInt();
                             setState(() {});
-                            print('Button pressed...');
                           },
                           child: const Text('Get Supply'),
                         ),
@@ -356,10 +270,15 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                     ),
                   ),
                 ),
+              ],
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
                   child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
+                    width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.18,
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEEEEE),
@@ -368,35 +287,34 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       ),
                     ),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.max,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         const Text(
-                          'Mint Tokens',
+                          'Main Acc Balance',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        TextFormField(
-                          controller: mintAmount,
-                          decoration: const InputDecoration(
-                            hintText: 'amount',
-                          ),
+                        Text(
+                          balance.toString(),
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                         ElevatedButton(
                           onPressed: () async {
-                            await writeContract(mint,
-                                [mainAddress, BigInt.parse(mintAmount.text)]);
+                            var result = await readContract(
+                              balanceOf,
+                              [mainAddress],
+                            );
+                            balance = result.first.toInt();
                             setState(() {});
-                            print('Button pressed...');
                           },
-                          child: const Text('Mint'),
+                          child: const Text('Get Balance'),
                         ),
                       ],
                     ),
@@ -405,8 +323,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
                   child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    height: MediaQuery.of(context).size.height * 0.19,
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    height: MediaQuery.of(context).size.height * 0.18,
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEEEEE),
                       border: Border.all(
@@ -414,43 +332,109 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       ),
                     ),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.max,
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         const Text(
-                          'Burn Tokens',
+                          'Acc 2 Balance',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        TextFormField(
-                          controller: burnAmount,
-                          decoration: const InputDecoration(
-                            hintText: 'amount',
-                          ),
+                        Text(
+                          secAccBal.toString(),
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            var result = await readContract(
+                              balanceOf,
+                              [secondAccAdd],
+                            );
+                            secAccBal = result.first.toInt();
+                            setState(() {});
+                          },
+                          child: const Text('Get Balance'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    height: MediaQuery.of(context).size.height * 0.18,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEEEEE),
+                      border: Border.all(
+                        color: const Color(0xFF191919),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Transfer From Acc 1 to Acc 2',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextField(
+                          controller: transferAmount,
+                          decoration: const InputDecoration(
+                            hintText: 'amount',
+                            border: InputBorder.none,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         ElevatedButton(
-                          onPressed: () async {
-                            await writeContract(burn,
-                                [mainAddress, BigInt.parse(burnAmount.text)]);
-                            setState(() {});
-                            print('Button pressed...');
-                          },
-                          child: const Text('Burn'),
-                        ),
+                            onPressed: () async {
+                              await writeContract(
+                                transferFrom,
+                                [
+                                  secondAccAdd,
+                                  BigInt.parse(transferAmount.text)
+                                ],
+                              );
+
+                              // Fetch main & second acc balance again
+                              var res = await readContract(
+                                balanceOf,
+                                [mainAddress],
+                              );
+                              balance = res.first.toInt();
+
+                              var result = await readContract(
+                                balanceOf,
+                                [secondAccAdd],
+                              );
+                              secAccBal = result.first.toInt();
+
+                              setState(() {
+                                transferAmount.clear();
+                              });
+                            },
+                            child: const Text('Transfer')),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
